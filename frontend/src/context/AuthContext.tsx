@@ -90,14 +90,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setLoading(true);
       setError(null);
       
-      const response = await api.post('/api/auth/register', userData);
+      const response = await api.post('/api/auth/signup', userData);
       
-      const { token, user } = response.data;
-      
-      // Store token in localStorage
-      localStorage.setItem('token', token);
-      setToken(token);
-      setUser(user);
+      // Backend doesn't return token directly; it just returns a success message
+      // We need to login after successful registration
+      await login(userData.email, userData.password);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Registration failed. Please try again.');
       throw err;
