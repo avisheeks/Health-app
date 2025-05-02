@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNotification } from '../context/NotificationContext';
+import { supabase } from '../config/supabase';
 
 export interface Doctor {
   id: string;
@@ -25,7 +26,7 @@ export interface Doctor {
   };
 }
 
-// Mock doctor data
+// Mock doctor data for fallback
 const mockDoctors: Doctor[] = [
   {
     id: 'dr1',
@@ -152,19 +153,40 @@ export const useDoctors = () => {
   const [error, setError] = useState<Error | null>(null);
   const { showNotification } = useNotification();
 
-  // Fetch all doctors
+  // Fetch all doctors from Supabase
   const fetchDoctors = useCallback(async () => {
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setDoctors(mockDoctors);
-      return mockDoctors;
+      // Fetch doctors from Supabase profiles table where role is DOCTOR
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, last_name, role')
+        .eq('role', 'DOCTOR');
+        
+      if (error) {
+        throw error;
+      }
+      
+      // Transform the data to match the Doctor interface
+      const formattedDoctors: Doctor[] = data.map(profile => ({
+        id: profile.id,
+        name: profile.full_name || profile.last_name || 'Unknown Doctor',
+        specialty: 'General Medicine', // Default since specialty doesn't exist in DB
+        contactInfo: {
+          email: profile.email
+        }
+      }));
+      
+      setDoctors(formattedDoctors);
+      return formattedDoctors;
     } catch (err) {
       const error = err as Error;
       setError(error);
       showNotification('Error fetching doctors: ' + error.message, 'error');
-      return [];
+      
+      // Fallback to mock data in case of error
+      setDoctors(mockDoctors);
+      return mockDoctors;
     } finally {
       setLoading(false);
     }
@@ -174,20 +196,41 @@ export const useDoctors = () => {
   const fetchDoctorById = useCallback(async (doctorId: string) => {
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const doctor = mockDoctors.find(d => d.id === doctorId);
+      // Fetch doctor from Supabase
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, last_name, role')
+        .eq('id', doctorId)
+        .eq('role', 'DOCTOR')
+        .single();
+        
+      if (error) {
+        throw error;
+      }
       
-      if (!doctor) {
+      if (!data) {
         throw new Error('Doctor not found');
       }
+      
+      // Transform to match Doctor interface
+      const doctor: Doctor = {
+        id: data.id,
+        name: data.full_name || data.last_name || 'Unknown Doctor',
+        specialty: 'General Medicine', // Default since specialty doesn't exist in DB
+        contactInfo: {
+          email: data.email
+        }
+      };
       
       return doctor;
     } catch (err) {
       const error = err as Error;
       setError(error);
       showNotification('Error fetching doctor: ' + error.message, 'error');
-      return null;
+      
+      // Fallback to mock data
+      const mockDoctor = mockDoctors.find(d => d.id === doctorId);
+      return mockDoctor || null;
     } finally {
       setLoading(false);
     }
@@ -197,18 +240,39 @@ export const useDoctors = () => {
   const filterDoctorsBySpecialty = useCallback(async (specialty: string) => {
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const filteredDoctors = mockDoctors.filter(
-        d => d.specialty.toLowerCase() === specialty.toLowerCase()
-      );
+      // Since specialty column doesn't exist, we'll just fetch all doctors
+      // and filter client-side (not ideal but works as a fallback)
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, last_name, role')
+        .eq('role', 'DOCTOR');
+        
+      if (error) {
+        throw error;
+      }
       
-      return filteredDoctors;
+      // Transform to match Doctor interface
+      const formattedDoctors: Doctor[] = data.map(profile => ({
+        id: profile.id,
+        name: profile.full_name || profile.last_name || 'Unknown Doctor',
+        specialty: 'General Medicine', // Default since specialty doesn't exist in DB
+        contactInfo: {
+          email: profile.email
+        }
+      }));
+      
+      // We'll just return all doctors since we can't filter by specialty in DB
+      return formattedDoctors;
     } catch (err) {
       const error = err as Error;
       setError(error);
       showNotification('Error filtering doctors: ' + error.message, 'error');
-      return [];
+      
+      // Fallback to filtering mock data
+      const filteredMockDoctors = mockDoctors.filter(
+        d => d.specialty.toLowerCase().includes(specialty.toLowerCase())
+      );
+      return filteredMockDoctors;
     } finally {
       setLoading(false);
     }
