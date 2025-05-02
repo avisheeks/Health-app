@@ -88,7 +88,7 @@ const ForgotPassword = () => {
             
             {error && (
               <Alert severity="error" sx={{ mt: 2 }}>
-                {error}
+                {typeof error === 'string' ? error : error.message}
               </Alert>
             )}
             

@@ -51,8 +51,8 @@ const AppointmentsList = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const isPatient = user?.roles?.includes('PATIENT');
-  const isDoctor = user?.roles?.includes('DOCTOR');
+  const isPatient = user?.user_metadata?.role === 'PATIENT';
+  const isDoctor = user?.user_metadata?.role === 'DOCTOR';
   
   // State for filtering and sorting
   const [filter, setFilter] = useState({

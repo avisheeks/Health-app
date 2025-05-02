@@ -1,88 +1,341 @@
 # Hospital Management System
 
-A comprehensive hospital management system designed to streamline healthcare operations, enhance patient experience, and improve healthcare delivery.
+A modern web-based Hospital Management System built with React, FastAPI, and Supabase.
+
+## Table of Contents
+- [Overview](#overview)
+- [Features](#features)
+- [Technology Stack](#technology-stack)
+- [Project Structure](#project-structure)
+- [Setup and Installation](#setup-and-installation)
+- [Database Schema](#database-schema)
+- [API Documentation](#api-documentation)
+- [Authentication](#authentication)
+- [Role-Based Access](#role-based-access)
+- [Development Guidelines](#development-guidelines)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Overview
+
+The Hospital Management System is a comprehensive solution for managing hospital operations, patient records, appointments, and medical staff. It provides role-based access for patients, doctors, and administrators.
+
+### Key Features Highlights
+- User authentication with email verification
+- Role-based access control
+- Appointment scheduling system
+- Patient health metrics tracking
+- Doctor availability management
+- Medical records management
+- Real-time notifications
 
 ## Features
 
-- **Patient Portal**: Secure access for patients to manage their healthcare journey
-- **Health Metrics Tracking**: Monitor vital signs and health metrics over time
-- **Appointment Management**: Schedule, view, and manage appointments
-- **Medical Records**: Access to medical history and test results
-- **Messaging**: Secure communication with healthcare providers
-- **Telemedicine**: Virtual consultations through integrated video platform
+### Patient Features
+- Schedule and manage appointments
+- View personal health metrics
+- Access medical history
+- Communicate with doctors
+- View prescriptions and reports
+- Receive appointment reminders
 
-## Tech Stack
+### Doctor Features
+- Manage daily appointments
+- Set availability schedule
+- Access patient records
+- Write prescriptions
+- Update patient health metrics
+- View medical history
 
-- **Frontend**: React, TypeScript, Material-UI
-- **State Management**: React Query, Context API
-- **Visualization**: Chart.js
-- **Routing**: React Router
-- **Form Handling**: React Hook Form
-- **API Communication**: Axios
-- **Authentication**: JWT
+### Admin Features
+- User management
+- Role assignment
+- System configuration
+- Analytics dashboard
+- Report generation
 
-## Modules
+## Technology Stack
 
-### Health Metrics Module
+### Frontend
+- React 18.x
+- TypeScript
+- Material-UI (MUI)
+- Context API for state management
+- Supabase Client
 
-A comprehensive module for tracking and visualizing health metrics over time:
+### Backend
+- FastAPI (Python)
+- Supabase (PostgreSQL)
+- JWT Authentication
+- SQLAlchemy ORM
 
-- Dashboard view of all health metrics
-- Detailed history for each metric
-- Data entry forms for adding new readings
-- Interactive charts and trend analysis
-- Date filtering for historical readings
+### Database
+- PostgreSQL (via Supabase)
+- Row Level Security
+- Real-time subscriptions
 
-Supports tracking of:
-- Heart Rate
-- Blood Pressure
-- Oxygen Level
-- Body Temperature
+### DevOps
+- Git for version control
+- GitHub Actions for CI/CD
+- Docker for containerization
 
-### Appointments Module
+## Project Structure
 
-Managing healthcare appointments with features like:
+```
+project-root/
+├── frontend/
+│   ├── public/
+│   └── src/
+│       ├── components/
+│       │   ├── auth/
+│       │   ├── layout/
+│       │   └── shared/
+│       ├── context/
+│       ├── hooks/
+│       ├── pages/
+│       ├── services/
+│       ├── types/
+│       └── utils/
+├── backend/
+│   ├── src/
+│   │   ├── models/
+│   │   ├── routers/
+│   │   └── utils/
+│   ├── tests/
+│   └── main.py
+└── docs/
+```
 
-- List and calendar views
-- Appointment scheduling
-- Reminders and notifications
-- Integration with telemedicine platform
+## Setup and Installation
 
-### User Profile Module
+### Prerequisites
+- Node.js (v16 or higher)
+- Python (v3.8 or higher)
+- PostgreSQL
+- Supabase Account
 
-Managing user information and preferences:
-
-- Personal information
-- Medical history
-- Insurance details
-- Account settings
-
-## Installation and Setup
-
-1. Clone the repository
-2. Install dependencies:
+### Frontend Setup
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/hospital-management.git
+   cd hospital-management/frontend
    ```
-   cd frontend
+
+2. Install dependencies:
+   ```bash
    npm install
    ```
-3. Start the development server:
+
+3. Create .env file:
+   ```env
+   REACT_APP_SUPABASE_URL=your_supabase_url
+   REACT_APP_SUPABASE_ANON_KEY=your_supabase_anon_key
    ```
+
+4. Start development server:
+   ```bash
    npm start
    ```
 
-## Development
+### Backend Setup
+1. Navigate to backend directory:
+   ```bash
+   cd ../backend
+   ```
 
-- The application uses TypeScript for type safety
-- Material-UI provides consistent design components
-- Chart.js is used for data visualization
-- React Router handles navigation between pages
+2. Create virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
 
-## Folder Structure
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-- `/frontend/src/components`: Reusable UI components
-- `/frontend/src/pages`: Page components organized by module
-- `/frontend/src/context`: Context providers for state management
-- `/frontend/src/services`: API services and data fetching
-- `/frontend/src/hooks`: Custom React hooks
-- `/frontend/src/utils`: Utility functions
-- `/frontend/src/assets`: Static assets like images and icons 
+4. Create .env file:
+   ```env
+   SUPABASE_URL=your_supabase_url
+   SUPABASE_KEY=your_service_role_key
+   ```
+
+5. Start the server:
+   ```bash
+   python main.py
+   ```
+
+## Database Schema
+
+### Core Tables
+
+#### profiles
+```sql
+create table profiles (
+    id uuid references auth.users primary key,
+    email text unique not null,
+    first_name text,
+    last_name text,
+    full_name text,
+    role text,
+    roles text[],
+    created_at timestamptz default now(),
+    updated_at timestamptz default now()
+);
+```
+
+#### doctor_profiles
+```sql
+create table doctor_profiles (
+    id uuid references auth.users primary key,
+    specialization text,
+    license_number text,
+    availability_hours jsonb,
+    created_at timestamptz default now(),
+    updated_at timestamptz default now()
+);
+```
+
+#### appointments
+```sql
+create table appointments (
+    id uuid primary key default uuid_generate_v4(),
+    patient_id uuid references auth.users not null,
+    doctor_id uuid references auth.users not null,
+    appointment_date timestamptz not null,
+    status text default 'PENDING',
+    reason text,
+    notes text,
+    created_at timestamptz default now(),
+    updated_at timestamptz default now()
+);
+```
+
+## API Documentation
+
+### Authentication Endpoints
+
+#### Register User
+```http
+POST /auth/register
+Content-Type: application/json
+
+{
+    "email": "user@example.com",
+    "password": "securepassword",
+    "firstName": "John",
+    "lastName": "Doe",
+    "role": "PATIENT"
+}
+```
+
+#### Login
+```http
+POST /auth/login
+Content-Type: application/json
+
+{
+    "email": "user@example.com",
+    "password": "securepassword"
+}
+```
+
+### Appointment Endpoints
+
+#### Create Appointment
+```http
+POST /appointments
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+    "doctor_id": "uuid",
+    "appointment_date": "2024-03-20T10:00:00Z",
+    "reason": "Regular checkup"
+}
+```
+
+## Authentication
+
+### Registration Flow
+1. User submits registration form
+2. System creates auth.users entry
+3. Trigger creates profile entry
+4. Confirmation email sent
+5. User verifies email
+6. Account activated
+
+### Login Flow
+1. User submits credentials
+2. System validates email/password
+3. JWT token generated
+4. User session created
+5. Role-based redirect
+
+## Role-Based Access
+
+### Patient Access
+- View own profile
+- Book appointments
+- View health metrics
+- Access medical history
+
+### Doctor Access
+- Manage appointments
+- Update availability
+- Access patient records
+- Write prescriptions
+
+### Admin Access
+- Full system access
+- User management
+- Configuration control
+- Analytics access
+
+## Development Guidelines
+
+### Code Style
+- Use TypeScript for type safety
+- Follow ESLint configuration
+- Use Prettier for formatting
+- Write unit tests for components
+
+### Git Workflow
+1. Create feature branch
+2. Make changes
+3. Write tests
+4. Create pull request
+5. Code review
+6. Merge to main
+
+### Commit Messages
+- Use conventional commits
+- Include ticket number
+- Be descriptive
+- Keep it concise
+
+## Contributing
+
+1. Fork the repository
+2. Create feature branch
+3. Commit changes
+4. Push to branch
+5. Create Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## Contact
+
+For any queries, please contact:
+- Email: your.email@example.com
+- GitHub: [@yourusername](https://github.com/yourusername)
+
+## Acknowledgments
+
+- Material-UI for the component library
+- Supabase for the backend infrastructure
+- FastAPI for the API framework 

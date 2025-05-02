@@ -7,6 +7,8 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { theme } from './theme';
+import DoctorMap from './components/DoctorMap';
+import FindDoctor from './pages/FindDoctor';
 
 // Layout
 import AppLayout from './components/layout/AppLayout';
@@ -48,6 +50,9 @@ import { KnowledgeBase, ArticleView as KnowledgeBaseArticleView } from './pages/
 
 // Telemedicine
 import { TelemedicineSession, TelemedicineLanding } from './pages/telemedicine';
+
+// Messaging
+import MessagingPage from './pages/messaging';
 
 // Placeholder components for missing features
 const Inbox = () => (
@@ -112,6 +117,7 @@ const App = () => {
                   <Route path="/register" element={<Register />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password/:token" element={<ResetPassword />} />
+                  <Route path="/find-doctor" element={<FindDoctor />} />
                   
                   {/* Protected routes */}
                   <Route element={<AppLayout />}>
@@ -197,7 +203,7 @@ const App = () => {
                       path="/messages" 
                       element={
                         <PrivateRoute>
-                          <Inbox />
+                          <MessagingPage />
                         </PrivateRoute>
                       } 
                     />
@@ -322,6 +328,7 @@ const App = () => {
                   {/* Error routes */}
                   <Route path="/unauthorized" element={<Unauthorized />} />
                   <Route path="*" element={<NotFound />} />
+                  <Route path="/map" element={<DoctorMap />} />
                 </Routes>
               </BrowserRouter>
             </NotificationProvider>

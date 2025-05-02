@@ -45,7 +45,7 @@ const AppLayout = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   
   // User menu
@@ -77,7 +77,7 @@ const AppLayout = () => {
   };
   
   const handleLogout = () => {
-    logout();
+    signOut();
     navigate('/login');
   };
   
@@ -106,7 +106,7 @@ const AppLayout = () => {
     ];
     
     // Health Metrics - Only for patients
-    if (user?.roles?.includes('PATIENT')) {
+    if (user?.user_metadata?.role === 'PATIENT') {
       items.push({
         text: 'Health Metrics',
         icon: <FavoriteIcon />,
@@ -132,7 +132,7 @@ const AppLayout = () => {
     );
     
     // Telemedicine - Only for doctors and patients
-    if (['DOCTOR', 'PATIENT'].some(role => user?.roles?.includes(role))) {
+    if (['DOCTOR', 'PATIENT'].some(role => user?.user_metadata?.role === role)) {
       items.push({
         text: 'Telemedicine',
         icon: <VideocamIcon />,
@@ -142,7 +142,7 @@ const AppLayout = () => {
     }
     
     // Reports - Only for doctors and patients
-    if (['DOCTOR', 'PATIENT'].some(role => user?.roles?.includes(role))) {
+    if (['DOCTOR', 'PATIENT'].some(role => user?.user_metadata?.role === role)) {
       items.push({
         text: 'Reports',
         icon: <AssessmentIcon />,
@@ -160,7 +160,7 @@ const AppLayout = () => {
     });
     
     // Admin section - Only for admins
-    if (user?.roles?.includes('ADMIN')) {
+    if (user?.user_metadata?.role === 'ADMIN') {
       items.push({
         text: 'User Management',
         icon: <AdminIcon />,
@@ -254,11 +254,11 @@ const AppLayout = () => {
             sx={{ ml: 1 }}
           >
             <Avatar
-              alt={user?.firstName || 'User'}
-              src={user?.profileImage || ''}
+              alt={user?.user_metadata?.firstName || 'User'}
+              src={user?.user_metadata?.profileImage || ''}
               sx={{ width: 32, height: 32 }}
             >
-              {user?.firstName?.[0] || 'U'}
+              {user?.user_metadata?.firstName?.[0] || 'U'}
             </Avatar>
           </IconButton>
         </Toolbar>

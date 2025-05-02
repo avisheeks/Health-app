@@ -1,232 +1,227 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 import {
-  Typography,
-  Paper,
   Table,
   TableBody,
   TableCell,
-  TableContainer,
   TableHead,
+  TableHeader,
   TableRow,
-  Button,
-  IconButton,
-  Box,
-  Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
-  CircularProgress
-} from '@mui/material';
-import {
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Visibility as ViewIcon,
-} from '@mui/icons-material';
-import { format } from 'date-fns';
-import { Appointment } from '../../hooks/useAppointments';
+} from '../ui/table';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import { useToast } from '../ui/use-toast';
+import { useAuth } from '../../context/AuthContext';
+import { appointmentService } from '../../services/appointmentService';
+import { Appointment, AppointmentStatus } from '../../types/appointment';
 
-// Define props interface
 interface AppointmentListProps {
-  appointments: Appointment[];
-  loading: boolean;
-  error: Error | null;
-  onDelete?: (id: string) => void;
-  onEdit?: (id: string) => void;
-  onView?: (id: string) => void;
+  role: 'patient' | 'doctor';
+  onEdit?: (appointment: Appointment) => void;
+  filters?: {
+    status?: AppointmentStatus[];
+  };
 }
 
-// Define appointment status colors
-const statusColors: Record<string, "primary" | "success" | "error" | "warning" | "info" | "default"> = {
-  SCHEDULED: 'primary',
-  CONFIRMED: 'success',
-  COMPLETED: 'success',
-  CANCELLED: 'error',
-  NO_SHOW: 'warning',
-  RESCHEDULED: 'info'
-};
-
-const AppointmentList: React.FC<AppointmentListProps> = ({
-  appointments,
-  loading,
-  error,
-  onDelete,
+export const AppointmentList: React.FC<AppointmentListProps> = ({
+  role,
   onEdit,
-  onView
+  filters = {}
 }) => {
-  const navigate = useNavigate();
-  
-  // State for delete confirmation dialog
-  const [deleteDialog, setDeleteDialog] = React.useState<{
-    open: boolean;
-    appointmentId: string | null;
-  }>({
-    open: false,
-    appointmentId: null
-  });
-  
-  const handleDeleteClick = (appointmentId: string) => {
-    setDeleteDialog({
-      open: true,
-      appointmentId
-    });
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAppointments();
+  }, [user?.id, role, filters]);
+
+  const fetchAppointments = async () => {
+    try {
+      const params: any = {
+        [role === 'patient' ? 'patient_id' : 'doctor_id']: user?.id,
+      };
+
+      // Add status filter if provided
+      if (filters.status?.length) {
+        params.status = filters.status;
+      }
+
+      const data = await appointmentService.getAppointments(params);
+      setAppointments(data);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch appointments',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
   };
-  
-  const handleDeleteConfirm = () => {
-    if (deleteDialog.appointmentId && onDelete) {
-      onDelete(deleteDialog.appointmentId);
-      setDeleteDialog({
-        open: false,
-        appointmentId: null
+
+  const handleStatusUpdate = async (id: string, status: AppointmentStatus) => {
+    try {
+      await appointmentService.update(id, { status });
+      toast({
+        title: 'Success',
+        description: 'Appointment status updated successfully',
+        variant: 'success',
+      });
+      fetchAppointments();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update appointment status',
+        variant: 'destructive',
       });
     }
   };
-  
-  const handleDeleteCancel = () => {
-    setDeleteDialog({
-      open: false,
-      appointmentId: null
-    });
+
+  const handleCancel = async (id: string) => {
+    try {
+      await appointmentService.cancel(id);
+      toast({
+        title: 'Success',
+        description: 'Appointment cancelled successfully',
+        variant: 'success',
+      });
+      fetchAppointments();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to cancel appointment',
+        variant: 'destructive',
+      });
+    }
   };
-  
-  const renderStatus = (status: string) => {
+
+  const getStatusBadgeVariant = (status: AppointmentStatus) => {
+    switch (status) {
+      case AppointmentStatus.CONFIRMED:
+        return 'success';
+      case AppointmentStatus.CANCELLED:
+        return 'destructive';
+      case AppointmentStatus.COMPLETED:
+        return 'secondary';
+      case AppointmentStatus.NO_SHOW:
+        return 'warning';
+      default:
+        return 'default';
+    }
+  };
+
+  const renderActions = (appointment: Appointment) => {
+    const isUpcoming = [AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED].includes(appointment.status);
+    
+    if (role === 'doctor') {
+      return (
+        <div className="space-x-2">
+          {isUpcoming && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleStatusUpdate(appointment.id, AppointmentStatus.CONFIRMED)}
+              >
+                Confirm
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleStatusUpdate(appointment.id, AppointmentStatus.COMPLETED)}
+              >
+                Complete
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => handleStatusUpdate(appointment.id, AppointmentStatus.NO_SHOW)}
+              >
+                No Show
+              </Button>
+            </>
+          )}
+        </div>
+      );
+    }
+
     return (
-      <Chip 
-        label={status} 
-        color={statusColors[status] || 'default'} 
-        size="small" 
-        variant="outlined" 
-      />
+      <div className="space-x-2">
+        {isUpcoming && (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onEdit?.(appointment)}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => handleCancel(appointment.id)}
+            >
+              Cancel
+            </Button>
+          </>
+        )}
+      </div>
     );
   };
-  
+
   if (loading) {
+    return <div className="text-center py-8">Loading...</div>;
+  }
+
+  if (appointments.length === 0) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" height="200px">
-        <CircularProgress />
-      </Box>
+      <div className="text-center py-8 text-gray-500">
+        No appointments found
+      </div>
     );
   }
-  
-  if (error) {
-    return (
-      <Box p={3}>
-        <Typography color="error">
-          Error loading appointments: {error.message}
-        </Typography>
-      </Box>
-    );
-  }
-  
-  if (!appointments || appointments.length === 0) {
-    return (
-      <Box p={3} textAlign="center">
-        <Typography>No appointments found.</Typography>
-        <Button 
-          variant="contained" 
-          color="primary"
-          sx={{ mt: 2 }}
-          onClick={() => navigate('/appointments/new')}
-        >
-          Schedule New Appointment
-        </Button>
-      </Box>
-    );
-  }
-  
+
   return (
-    <>
-      <TableContainer component={Paper} elevation={2}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Date</TableCell>
-              <TableCell>Time</TableCell>
-              <TableCell>Doctor</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell align="right">Actions</TableCell>
+    <div className="space-y-4">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Date & Time</TableHead>
+            <TableHead>{role === 'patient' ? 'Doctor' : 'Patient'}</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Reason</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {appointments.map((appointment) => (
+            <TableRow key={appointment.id}>
+              <TableCell>
+                {format(new Date(appointment.appointment_date), 'PPp')}
+              </TableCell>
+              <TableCell>
+                {role === 'patient' ? appointment.doctor_id : appointment.patient_id}
+              </TableCell>
+              <TableCell>
+                {appointment.appointment_type.replace('_', ' ')}
+              </TableCell>
+              <TableCell>{appointment.reason}</TableCell>
+              <TableCell>
+                <Badge variant={getStatusBadgeVariant(appointment.status)}>
+                  {appointment.status}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                {renderActions(appointment)}
+              </TableCell>
             </TableRow>
-          </TableHead>
-          <TableBody>
-            {appointments.map((appointment) => {
-              const startDate = new Date(appointment.startTime);
-              const startTime = format(startDate, 'h:mm a');
-              const endTime = format(new Date(appointment.endTime), 'h:mm a');
-              
-              return (
-                <TableRow key={appointment.id}>
-                  <TableCell>{format(startDate, 'MMM d, yyyy')}</TableCell>
-                  <TableCell>{`${startTime} - ${endTime}`}</TableCell>
-                  <TableCell>{appointment.doctor.name}</TableCell>
-                  <TableCell>
-                    {appointment.type === 'VIRTUAL' ? 'Telehealth' : 'In-person'}
-                  </TableCell>
-                  <TableCell>{renderStatus(appointment.status)}</TableCell>
-                  <TableCell align="right">
-                    <Box>
-                      {onView && (
-                        <IconButton 
-                          size="small" 
-                          onClick={() => onView(appointment.id)}
-                          aria-label="view"
-                        >
-                          <ViewIcon fontSize="small" />
-                        </IconButton>
-                      )}
-                      
-                      {onEdit && appointment.status !== 'CANCELLED' && appointment.status !== 'COMPLETED' && (
-                        <IconButton 
-                          size="small" 
-                          onClick={() => onEdit(appointment.id)}
-                          aria-label="edit"
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      )}
-                      
-                      {onDelete && appointment.status !== 'CANCELLED' && appointment.status !== 'COMPLETED' && (
-                        <IconButton 
-                          size="small" 
-                          onClick={() => handleDeleteClick(appointment.id)}
-                          aria-label="delete"
-                          color="error"
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      )}
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteDialog.open}
-        onClose={handleDeleteCancel}
-      >
-        <DialogTitle>Cancel Appointment</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to cancel this appointment? This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDeleteCancel} color="primary">
-            No, Keep It
-          </Button>
-          <Button onClick={handleDeleteConfirm} color="error">
-            Yes, Cancel Appointment
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 };
 

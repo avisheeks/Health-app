@@ -26,53 +26,15 @@ import { useQuery } from 'react-query';
 import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
 import './Dashboard.css';
-
-// Define interfaces for the data types
-interface Appointment {
-  id: string;
-  title: string;
-  startTime: string;
-  endTime: string;
-  status: string;
-  type: string;
-  doctor: {
-    id: string;
-    name: string;
-    specialty: string;
-  };
-}
-
-interface Message {
-  id: string;
-  sender: string;
-  content: string;
-  timestamp: string;
-  read: boolean;
-}
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  timestamp: string;
-  read: boolean;
-  type: string;
-}
-
-interface HealthMetrics {
-  HEART_RATE?: number;
-  BLOOD_PRESSURE_SYSTOLIC?: number;
-  BLOOD_PRESSURE_DIASTOLIC?: number;
-  OXYGEN_LEVEL?: number;
-  TEMPERATURE?: number;
-}
+import WelcomeCard from './WelcomeCard';
+import { Appointment, Message, Notification, HealthMetrics } from '../../types/api';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isPatient = user?.roles?.includes('PATIENT');
-  const isDoctor = user?.roles?.includes('DOCTOR');
-  const isAdmin = user?.roles?.includes('ADMIN');
+  const isPatient = user?.user_metadata?.role === 'PATIENT';
+  const isDoctor = user?.user_metadata?.role === 'DOCTOR';
+  const isAdmin = user?.user_metadata?.role === 'ADMIN';
 
   // Fetch upcoming appointments
   const { data: appointments, isLoading: appointmentsLoading } = useQuery<Appointment[]>(
@@ -114,11 +76,35 @@ const Dashboard = () => {
     { enabled: !!user && isPatient }
   );
 
+  // Calculate pending results (example logic)
+  const pendingResults = notifications?.filter(n => 
+    n.type === 'TEST_RESULT' && !n.read
+  ).length || 0;
+
   return (
     <div className="dashboard-container">
-      <Typography variant="h4" className="dashboard-title">
-        Welcome, {user?.firstName || 'User'}
-      </Typography>
+      {/* New Welcome Card with Aceternity UI */}
+      <Box mb={4}>
+        <WelcomeCard 
+          userName={user?.user_metadata?.firstName || 'User'} 
+          upcomingAppointments={appointments?.length || 0}
+          pendingResults={pendingResults}
+        />
+      </Box>
+      {/* Add Find Doctor Button for Patients only */}
+      {isPatient && (
+        <Box mb={4} textAlign="center">
+          <Button
+            variant="contained"
+            color="secondary"
+            size="large"
+            onClick={() => navigate('/find-doctor')}
+            style={{ background: '#7c3aed', color: '#fff', borderRadius: '8px', fontWeight: 600 }}
+          >
+            Find Doctors Near Me
+          </Button>
+        </Box>
+      )}
 
       <Grid container spacing={4}>
         {/* Upcoming Appointments */}

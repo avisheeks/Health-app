@@ -33,8 +33,7 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children, roles }) => {
 
   // If roles are specified, check if user has the required role
   if (roles && roles.length > 0) {
-    const hasRequiredRole = user.roles.some(role => roles.includes(role));
-    
+    const hasRequiredRole = roles.includes(user.user_metadata.role);
     if (!hasRequiredRole) {
       return <Navigate to="/unauthorized" replace />;
     }

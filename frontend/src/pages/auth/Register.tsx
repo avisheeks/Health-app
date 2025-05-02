@@ -5,17 +5,11 @@ import RegisterComponent, { RegisterFormData } from '../../components/auth/Regis
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import './Auth.css';
+import { UserMetadata, Role } from '../../types/user';
+import axios from 'axios';
+import { supabase } from '../../config/supabase';
 
 // Define interfaces for API data and errors
-interface UserData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  password: string;
-  roles: string[];
-}
-
-// Type guard for API error responses
 interface ApiErrorResponse {
   response?: {
     data?: {
@@ -35,7 +29,7 @@ function isApiErrorResponse(err: unknown): err is ApiErrorResponse {
 }
 
 const Register: React.FC = () => {
-  const { register, loading, user, clearError } = useAuth();
+  const { signUp, loading, user, clearError } = useAuth();
   const { showNotification } = useNotification();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,36 +48,87 @@ const Register: React.FC = () => {
       return;
     }
 
+    // If doctor, ensure location is selected
+    if (formData.role === 'DOCTOR' && (!formData.latitude || !formData.longitude)) {
+      setError('Please select your location on the map.');
+      showNotification('Please select your location on the map.', 'error');
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       setError(null);
       clearError();
 
-      // Create user data object
-      const userData: UserData = {
+      const fullName = `${formData.firstName} ${formData.lastName}`;
+      
+      // Create user data object for Supabase
+      const metadata: UserMetadata = {
+        full_name: fullName,
         firstName: formData.firstName,
         lastName: formData.lastName,
-        email: formData.email,
-        password: formData.password,
-        roles: ['PATIENT'] // Default role for new registrations
+        role: formData.role as Role,
+        // Add additional fields based on role
+        ...(formData.role === 'DOCTOR' ? {
+          specialization: '',
+          licenseNumber: ''
+        } : {})
       };
 
-      await register(userData);
-      showNotification('Registration successful! Welcome to Hospital Management System.', 'success');
-      navigate('/dashboard');
+      console.log('Registering with metadata:', metadata); // Debug log
+
+      // Sign up the user
+      const result = await signUp(
+        formData.email,
+        formData.password,
+        metadata
+      );
+
+      let userId = result?.user?.id;
+
+      // If userId is not available, try to get it from the current session
+      if (!userId) {
+        const { data: { session } } = await supabase.auth.getSession();
+        userId = session?.user?.id;
+      }
+
+      // If doctor, register in doctors table
+      if (formData.role === 'DOCTOR' && userId) {
+        try {
+          await axios.post('http://localhost:8000/doctors/register', {
+            id: userId,
+            name: fullName,
+            specialty: 'General', // You can update this to use a real specialty field
+            latitude: formData.latitude,
+            longitude: formData.longitude
+          });
+        } catch (err) {
+          setError('Doctor registration failed. Please try again.');
+          showNotification('Doctor registration failed. Please try again.', 'error');
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      if (result?.requiresEmailConfirmation) {
+        showNotification(
+          'Registration successful! Please check your email to confirm your account.',
+          'success'
+        );
+      } else {
+        showNotification('Registration successful!', 'success');
+      }
+      
+      navigate('/login');
     } catch (err: unknown) {
       console.error('Registration error:', err);
       
       let errorMessage = 'Registration failed. Please try again.';
       
       if (isApiErrorResponse(err)) {
-        if (err.response?.status === 500) {
-          errorMessage = 'Server error. The database might be unavailable. Please try again later or contact support.';
-        } else if (err.response?.data?.message) {
-          errorMessage = err.response.data.message;
-        } else if (err.message) {
-          errorMessage = err.message;
-        }
+        errorMessage = err.message || err.response?.data?.message || 'Registration failed. Please try again.';
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
       }
       
       setError(errorMessage);
