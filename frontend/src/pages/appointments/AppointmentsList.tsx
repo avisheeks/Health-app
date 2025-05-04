@@ -32,19 +32,19 @@ import {
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
-import { Appointment } from '../../hooks/useAppointments';
+import { Appointment, AppointmentStatus } from '../../types/appointment';
 import './Appointments.css';
 
 // Define appointment status types and colors
-type AppointmentStatus = 'SCHEDULED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' | 'RESCHEDULED';
+// type AppointmentStatus = 'SCHEDULED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' | 'RESCHEDULED';
 
 const statusColors: Record<AppointmentStatus, string> = {
-  SCHEDULED: 'primary',
-  CONFIRMED: 'success',
-  COMPLETED: 'success',
-  CANCELLED: 'error',
-  NO_SHOW: 'warning',
-  RESCHEDULED: 'info'
+  [AppointmentStatus.PENDING]: 'warning',
+  [AppointmentStatus.SCHEDULED]: 'primary',
+  [AppointmentStatus.CONFIRMED]: 'success',
+  [AppointmentStatus.COMPLETED]: 'success',
+  [AppointmentStatus.CANCELLED]: 'error',
+  [AppointmentStatus.NO_SHOW]: 'warning'
 };
 
 const AppointmentsList = () => {

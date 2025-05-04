@@ -17,7 +17,7 @@ import { Add as AddIcon } from '@mui/icons-material';
 import AppointmentList from '../../components/appointments/AppointmentList';
 import AppointmentForm from '../../components/appointments/AppointmentForm';
 import { useAuth } from '../../context/AuthContext';
-import { Appointment } from '../../hooks/useAppointments';
+import { Appointment } from '../../types/appointment';
 
 // Placeholder for the AppointmentCalendar component
 const AppointmentCalendar = () => {

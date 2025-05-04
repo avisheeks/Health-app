@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
-from src.routers import appointment, messaging, doctors
+from src.routers import appointment, messaging, doctors, wearable
 
 app = FastAPI(title="Hospital Management System API")
 
@@ -18,6 +18,7 @@ app.add_middleware(
 app.include_router(appointment.router)
 app.include_router(messaging.router)
 app.include_router(doctors.router)
+app.include_router(wearable.router)
 
 @app.get("/")
 async def root():

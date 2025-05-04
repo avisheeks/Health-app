@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Button } from '../../components/ui/button';
 import { useAuth } from '../../context/AuthContext';
@@ -30,15 +30,15 @@ export const AppointmentsPage = () => {
     switch (tab) {
       case 'upcoming':
         return {
-          status: [AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED]
+          status: ['SCHEDULED', 'CONFIRMED'] as AppointmentStatus[]
         };
       case 'past':
         return {
-          status: [AppointmentStatus.COMPLETED, AppointmentStatus.NO_SHOW]
+          status: ['COMPLETED', 'NO_SHOW'] as AppointmentStatus[]
         };
       case 'cancelled':
         return {
-          status: [AppointmentStatus.CANCELLED]
+          status: ['CANCELLED'] as AppointmentStatus[]
         };
       default:
         return {};
@@ -71,7 +71,7 @@ export const AppointmentsPage = () => {
             Back to Appointments
           </Button>
           <AppointmentBooking
-            doctorId={selectedAppointment?.doctor_id || ''}
+            doctorId={selectedAppointment?.doctor?.id || ''}
             onSuccess={handleBookingSuccess}
           />
         </div>

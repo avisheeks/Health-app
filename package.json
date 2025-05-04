@@ -1,8 +1,10 @@
 {
   "dependencies": {
+    "@mui/icons-material": "^7.0.2",
     "@react-google-maps/api": "^2.20.6",
     "framer-motion": "^12.9.4",
-    "jwt-decode": "^4.0.0"
+    "jwt-decode": "^4.0.0",
+    "recharts": "^2.15.3"
   },
   "devDependencies": {
     "@types/google.maps": "^3.58.1"

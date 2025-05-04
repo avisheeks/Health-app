@@ -1,60 +1,34 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Box,
   Paper,
   Typography,
   TextField,
   Button,
+  Grid,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
   FormHelperText,
-  Grid,
-  CircularProgress,
+  Box,
+  IconButton,
   Alert,
-  Snackbar,
-  SelectChangeEvent,
-  IconButton
+  CircularProgress,
+  SelectChangeEvent
 } from '@mui/material';
+import {
+  Close as CloseIcon,
+  ArrowBack as ArrowBackIcon,
+  Save as SaveIcon
+} from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
-import { 
-  Close as CloseIcon,
-  Save as SaveIcon,
-  ArrowBack as ArrowBackIcon
-} from '@mui/icons-material';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useCreateAppointment, useUpdateAppointment } from '../../hooks/useAppointments';
-import { useAppointment } from '../../hooks/useAppointment';
-import { useDoctors } from '../../hooks/useDoctors';
 import { useNotification } from '../../context/NotificationContext';
-
-type AppointmentType = 'IN_PERSON' | 'VIRTUAL';
-type AppointmentStatus = 'SCHEDULED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' | 'RESCHEDULED';
-
-// Define Doctor interface to match the API
-interface Doctor {
-  id: string;
-  name: string;
-  specialty: string;
-  image?: string;
-  department?: string;
-  hospital?: string;
-}
-
-interface AppointmentFormData {
-  title: string;
-  doctorId: string;
-  type: AppointmentType;
-  status: AppointmentStatus;
-  reason: string;
-  notes: string;
-  startTime: Date | null;
-  endTime: Date | null;
-  location?: string;
-  meetingLink?: string;
-}
+import useAppointments, { AppointmentFormData, useCreateAppointment, useUpdateAppointment, useAppointment } from '../../hooks/useAppointments';
+import { useDoctors, Doctor } from '../../hooks/useDoctors';
+import { addMinutes } from 'date-fns';
+import { AppointmentType, AppointmentStatus, Appointment } from '../../types/appointment';
 
 interface ValidationErrors {
   title?: string;
@@ -65,26 +39,27 @@ interface ValidationErrors {
   location?: string;
 }
 
+const initialFormState: AppointmentFormData = {
+  title: '',
+  doctorId: '',
+  patientId: '', // This will be set based on the authenticated user later
+  type: AppointmentType.IN_PERSON,
+  status: AppointmentStatus.SCHEDULED,
+  reason: '',
+  notes: '',
+  startTime: new Date(),
+  endTime: addMinutes(new Date(), 30),
+  location: '',
+  meetingLink: ''
+};
+
 const NewAppointment: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const isEditing = Boolean(id);
   const navigate = useNavigate();
   const { showNotification } = useNotification();
   
-  const initialFormData: AppointmentFormData = {
-    title: '',
-    doctorId: '',
-    type: 'IN_PERSON',
-    status: 'SCHEDULED',
-    reason: '',
-    notes: '',
-    startTime: null,
-    endTime: null,
-    location: '',
-    meetingLink: ''
-  };
-
-  const [formData, setFormData] = useState<AppointmentFormData>(initialFormData);
+  const [formData, setFormData] = useState<AppointmentFormData>(initialFormState);
   const [errors, setErrors] = useState<ValidationErrors>({});
   
   const createMutation = useCreateAppointment();
@@ -95,13 +70,19 @@ const NewAppointment: React.FC = () => {
     isLoading: loadingAppointment,
     error: appointmentError 
   } = useAppointment(id as string);
+  
+  // Add debug logging for doctors
+  useEffect(() => {
+    console.log('DEBUG - Doctors available in NewAppointment:', doctors);
+  }, [doctors]);
 
   // Load existing appointment data when editing
   useEffect(() => {
     if (isEditing && existingAppointment) {
       setFormData({
         title: existingAppointment.title,
-        doctorId: existingAppointment.doctorId,
+        doctorId: existingAppointment.doctor_id || existingAppointment.doctor.id,
+        patientId: existingAppointment.patient_id || '', // Add required patientId field
         type: existingAppointment.type as AppointmentType,
         status: existingAppointment.status as AppointmentStatus,
         reason: existingAppointment.reason || '',
@@ -117,7 +98,7 @@ const NewAppointment: React.FC = () => {
   const validateForm = (): boolean => {
     const newErrors: ValidationErrors = {};
     
-    if (!formData.title.trim()) {
+    if (!formData.title?.trim()) {
       newErrors.title = 'Title is required';
     }
     
@@ -180,11 +161,12 @@ const NewAppointment: React.FC = () => {
     }
     
     // Format data for API
-    const appointmentData = {
+    const appointmentData: AppointmentFormData = {
       ...formData,
-      // Ensure startTime and endTime are always strings and never undefined
-      startTime: formData.startTime ? formData.startTime.toISOString() : new Date().toISOString(),
-      endTime: formData.endTime ? formData.endTime.toISOString() : new Date(Date.now() + 30 * 60000).toISOString()
+      patientId: formData.patientId || '', // Ensure patientId is included
+      // Ensure startTime and endTime are always dates
+      startTime: formData.startTime || new Date(),
+      endTime: formData.endTime || addMinutes(new Date(), 30)
     };
     
     try {
@@ -229,11 +211,20 @@ const NewAppointment: React.FC = () => {
 
   const getEndTimeDefault = () => {
     if (formData.startTime) {
-      const defaultEnd = new Date(formData.startTime);
+      const startDate = typeof formData.startTime === 'string' 
+        ? new Date(formData.startTime)
+        : formData.startTime;
+      const defaultEnd = new Date(startDate);
       defaultEnd.setMinutes(defaultEnd.getMinutes() + 30);
       return defaultEnd;
     }
     return null;
+  };
+
+  // Helper function to safely work with dates
+  const ensureDate = (date: Date | string | null): Date | null => {
+    if (!date) return null;
+    return typeof date === 'string' ? new Date(date) : date;
   };
 
   return (
@@ -275,14 +266,19 @@ const NewAppointment: React.FC = () => {
                 {doctors && doctors.length > 0 ? (
                   doctors.map((doctor: Doctor) => (
                     <MenuItem key={doctor.id} value={doctor.id}>
-                      {doctor.name}
+                      {`Dr. ${doctor.name}`}
                     </MenuItem>
                   ))
                 ) : (
-                  <MenuItem value="1">Dr. Smith</MenuItem>
+                  <MenuItem disabled value="">No doctors available</MenuItem>
                 )}
               </Select>
               {errors.doctorId && <FormHelperText>{errors.doctorId}</FormHelperText>}
+              {doctors && doctors.length === 0 && 
+                <FormHelperText error>
+                  No doctors available. Please configure doctor profiles in the system.
+                </FormHelperText>
+              }
             </FormControl>
           </Grid>
           
@@ -333,23 +329,29 @@ const NewAppointment: React.FC = () => {
           <Grid item xs={12} sm={6}>
             <DatePicker
               label="Date"
-              value={formData.startTime}
+              value={ensureDate(formData.startTime)}
               onChange={(date) => {
                 if (date) {
                   // Keep the time part from the existing startTime
                   if (formData.startTime) {
+                    const startDate = ensureDate(formData.startTime);
                     const newDate = new Date(date);
-                    newDate.setHours(
-                      formData.startTime.getHours(),
-                      formData.startTime.getMinutes()
-                    );
+                    if (startDate) {
+                      newDate.setHours(
+                        startDate.getHours(),
+                        startDate.getMinutes()
+                      );
+                    }
                     handleDateChange('startTime', newDate);
                     
                     // Update end time if it exists
                     if (formData.endTime) {
-                      const timeDiff = formData.endTime.getTime() - formData.startTime.getTime();
-                      const newEndTime = new Date(newDate.getTime() + timeDiff);
-                      handleDateChange('endTime', newEndTime);
+                      const endDate = ensureDate(formData.endTime);
+                      if (startDate && endDate) {
+                        const timeDiff = endDate.getTime() - startDate.getTime();
+                        const newEndTime = new Date(newDate.getTime() + timeDiff);
+                        handleDateChange('endTime', newEndTime);
+                      }
                     }
                   } else {
                     // Set default time (9:00 AM) if no time is set
@@ -377,14 +379,14 @@ const NewAppointment: React.FC = () => {
           <Grid item xs={12} sm={6}>
             <TimePicker
               label="Start Time"
-              value={formData.startTime}
+              value={ensureDate(formData.startTime)}
               onChange={(time) => {
                 handleDateChange('startTime', time);
                 
                 // Update end time to be 30 minutes later if it's not set
                 // or if end time is before the new start time
-                if (!formData.endTime || (time && formData.endTime <= time)) {
-                  const newEndTime = new Date(time as Date);
+                if (time && (!formData.endTime || (formData.endTime && ensureDate(formData.endTime)! <= time))) {
+                  const newEndTime = new Date(time);
                   newEndTime.setMinutes(newEndTime.getMinutes() + 30);
                   handleDateChange('endTime', newEndTime);
                 }
@@ -402,7 +404,7 @@ const NewAppointment: React.FC = () => {
           <Grid item xs={12} sm={6}>
             <TimePicker
               label="End Time"
-              value={formData.endTime || getEndTimeDefault()}
+              value={ensureDate(formData.endTime) || getEndTimeDefault()}
               onChange={(time) => handleDateChange('endTime', time)}
               slotProps={{
                 textField: {
@@ -421,16 +423,16 @@ const NewAppointment: React.FC = () => {
                 <Select
                   labelId="status-select-label"
                   name="status"
-                  value={formData.status}
+                  value={formData.status || AppointmentStatus.SCHEDULED}
                   onChange={handleSelectChange}
                   label="Status"
                 >
-                  <MenuItem value="SCHEDULED">Scheduled</MenuItem>
-                  <MenuItem value="CONFIRMED">Confirmed</MenuItem>
-                  <MenuItem value="COMPLETED">Completed</MenuItem>
-                  <MenuItem value="CANCELLED">Cancelled</MenuItem>
-                  <MenuItem value="NO_SHOW">No Show</MenuItem>
-                  <MenuItem value="RESCHEDULED">Rescheduled</MenuItem>
+                  <MenuItem value={AppointmentStatus.SCHEDULED}>Scheduled</MenuItem>
+                  <MenuItem value={AppointmentStatus.CONFIRMED}>Confirmed</MenuItem>
+                  <MenuItem value={AppointmentStatus.COMPLETED}>Completed</MenuItem>
+                  <MenuItem value={AppointmentStatus.CANCELLED}>Cancelled</MenuItem>
+                  <MenuItem value={AppointmentStatus.NO_SHOW}>No Show</MenuItem>
+                  <MenuItem value={AppointmentStatus.PENDING}>Pending</MenuItem>
                 </Select>
               </FormControl>
             )}

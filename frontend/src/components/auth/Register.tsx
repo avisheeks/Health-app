@@ -12,6 +12,7 @@ export interface RegisterFormData {
   password: string;
   confirmPassword: string;
   role: 'DOCTOR' | 'PATIENT';
+  specialization?: string;
   latitude?: number;
   longitude?: number;
 }
@@ -29,6 +30,7 @@ const Register: React.FC<RegisterProps> = ({ onSubmit, isSubmitting }) => {
     password: '',
     confirmPassword: '',
     role: 'PATIENT',
+    specialization: 'General Medicine',
     latitude: undefined,
     longitude: undefined,
   });
@@ -146,15 +148,39 @@ const Register: React.FC<RegisterProps> = ({ onSubmit, isSubmitting }) => {
           </select>
         </div>
         {formData.role === 'DOCTOR' && (
-          <div className="form-group">
-            <label>Select your location on the map</label>
-            <div id="register-map" style={{ height: '250px', width: '100%', marginBottom: 10, borderRadius: 8, border: '1px solid #ccc' }} />
-            {formData.latitude && formData.longitude && (
-              <div style={{ fontSize: '0.9em', color: '#555' }}>
-                Selected Location: {formData.latitude.toFixed(5)}, {formData.longitude.toFixed(5)}
-              </div>
-            )}
-          </div>
+          <>
+            <div className="form-group">
+              <label htmlFor="specialization">Specialization</label>
+              <select
+                id="specialization"
+                name="specialization"
+                value={formData.specialization}
+                onChange={handleChange}
+                disabled={isSubmitting}
+                className="auth-select"
+              >
+                <option value="General Medicine">General Medicine</option>
+                <option value="Cardiology">Cardiology</option>
+                <option value="Dermatology">Dermatology</option>
+                <option value="Orthopedics">Orthopedics</option>
+                <option value="Pediatrics">Pediatrics</option>
+                <option value="Neurology">Neurology</option>
+                <option value="Obstetrics & Gynecology">Obstetrics & Gynecology</option>
+                <option value="Ophthalmology">Ophthalmology</option>
+                <option value="Psychiatry">Psychiatry</option>
+                <option value="Oncology">Oncology</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Select your location on the map</label>
+              <div id="register-map" style={{ height: '250px', width: '100%', marginBottom: 10, borderRadius: 8, border: '1px solid #ccc' }} />
+              {formData.latitude && formData.longitude && (
+                <div style={{ fontSize: '0.9em', color: '#555' }}>
+                  Selected Location: {formData.latitude.toFixed(5)}, {formData.longitude.toFixed(5)}
+                </div>
+              )}
+            </div>
+          </>
         )}
         <div className="form-group">
           <label htmlFor="password">Password</label>

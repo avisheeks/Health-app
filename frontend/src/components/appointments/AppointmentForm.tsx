@@ -21,6 +21,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { Doctor } from '../../hooks/useDoctors';
 import { AppointmentFormData } from '../../hooks/useAppointments';
 import { addHours } from 'date-fns';
+import { AppointmentType } from '../../types/appointment';
 
 interface AppointmentFormProps {
   doctors: Doctor[];
@@ -42,9 +43,10 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   const [formData, setFormData] = useState<AppointmentFormData>({
     title: initialValues?.title || '',
     doctorId: initialValues?.doctorId || '',
+    patientId: initialValues?.patientId || '',
     startTime: initialValues?.startTime || new Date().toISOString(),
     endTime: initialValues?.endTime || addHours(new Date(), 1).toISOString(),
-    type: initialValues?.type || 'IN_PERSON',
+    type: initialValues?.type || AppointmentType.IN_PERSON,
     reason: initialValues?.reason || '',
     notes: initialValues?.notes || '',
     location: initialValues?.location || '',
@@ -128,13 +130,15 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   };
   
   const handleAppointmentTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const type = e.target.value as 'IN_PERSON' | 'VIRTUAL';
+    const typeValue = e.target.value;
+    const type = typeValue === 'IN_PERSON' ? AppointmentType.IN_PERSON : AppointmentType.VIRTUAL;
+    
     setFormData(prev => ({
       ...prev,
-      type,
+      type: type,
       // Clear location or meetingLink based on appointment type
-      location: type === 'IN_PERSON' ? prev.location : '',
-      meetingLink: type === 'VIRTUAL' ? prev.meetingLink : ''
+      location: type === AppointmentType.IN_PERSON ? prev.location : '',
+      meetingLink: type === AppointmentType.VIRTUAL ? prev.meetingLink : ''
     }));
   };
   
@@ -149,11 +153,11 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       newErrors.doctorId = 'Please select a doctor';
     }
     
-    if (formData.type === 'IN_PERSON' && !formData.location) {
+    if (formData.type === AppointmentType.IN_PERSON && !formData.location) {
       newErrors.location = 'Location is required for in-person appointments';
     }
     
-    if (formData.type === 'VIRTUAL' && !formData.meetingLink) {
+    if (formData.type === AppointmentType.VIRTUAL && !formData.meetingLink) {
       newErrors.meetingLink = 'Meeting link is required for virtual appointments';
     }
     
@@ -166,8 +170,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     }
     
     // Validate start time is before end time
-    const startTime = new Date(formData.startTime);
-    const endTime = new Date(formData.endTime);
+    const startTime = new Date(formData.startTime || new Date());
+    const endTime = new Date(formData.endTime || addHours(new Date(), 1));
     
     if (startTime >= endTime) {
       newErrors.endTime = 'End time must be after start time';
@@ -240,7 +244,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
               <RadioGroup
                 row
                 name="type"
-                value={formData.type}
+                value={formData.type.toString()}
                 onChange={handleAppointmentTypeChange}
               >
                 <FormControlLabel
@@ -252,50 +256,16 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                 <FormControlLabel
                   value="VIRTUAL"
                   control={<Radio />}
-                  label="Telehealth"
+                  label="Virtual"
                   disabled={loading}
                 />
               </RadioGroup>
             </FormControl>
           </Grid>
           
-          {/* Date and Time */}
-          <LocalizationProvider dateAdapter={AdapterDateFns}>
-            <Grid item xs={12} sm={6}>
-              <DateTimePicker
-                label="Start Time"
-                value={new Date(formData.startTime)}
-                onChange={handleStartTimeChange}
-                slotProps={{
-                  textField: {
-                    fullWidth: true,
-                    required: true,
-                    disabled: loading
-                  }
-                }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <DateTimePicker
-                label="End Time"
-                value={new Date(formData.endTime)}
-                onChange={handleEndTimeChange}
-                slotProps={{
-                  textField: {
-                    fullWidth: true,
-                    required: true,
-                    error: !!errors.endTime,
-                    helperText: errors.endTime,
-                    disabled: loading
-                  }
-                }}
-              />
-            </Grid>
-          </LocalizationProvider>
-          
-          {/* Location or Meeting Link */}
-          <Grid item xs={12}>
-            {formData.type === 'IN_PERSON' ? (
+          {/* Conditional fields based on appointment type */}
+          {formData.type === AppointmentType.IN_PERSON && (
+            <Grid item xs={12}>
               <TextField
                 name="location"
                 label="Location"
@@ -307,7 +277,11 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                 helperText={errors.location}
                 disabled={loading}
               />
-            ) : (
+            </Grid>
+          )}
+          
+          {formData.type === AppointmentType.VIRTUAL && (
+            <Grid item xs={12}>
               <TextField
                 name="meetingLink"
                 label="Meeting Link"
@@ -319,7 +293,38 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                 helperText={errors.meetingLink}
                 disabled={loading}
               />
-            )}
+            </Grid>
+          )}
+          
+          {/* Date/Time Pickers */}
+          <Grid item xs={12} sm={6}>
+            <DateTimePicker
+              label="Start Time"
+              value={formData.startTime ? new Date(formData.startTime) : null}
+              onChange={handleStartTimeChange}
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                  error: !!errors.startTime,
+                  helperText: errors.startTime
+                }
+              }}
+            />
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <DateTimePicker
+              label="End Time"
+              value={formData.endTime ? new Date(formData.endTime) : null}
+              onChange={handleEndTimeChange}
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                  error: !!errors.endTime,
+                  helperText: errors.endTime
+                }
+              }}
+            />
           </Grid>
           
           {/* Reason for Visit */}
@@ -327,10 +332,10 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
             <TextField
               name="reason"
               label="Reason for Visit"
-              fullWidth
-              required
               multiline
               rows={3}
+              fullWidth
+              required
               value={formData.reason}
               onChange={handleChange}
               error={!!errors.reason}
@@ -344,9 +349,9 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
             <TextField
               name="notes"
               label="Additional Notes"
-              fullWidth
               multiline
-              rows={2}
+              rows={3}
+              fullWidth
               value={formData.notes}
               onChange={handleChange}
               disabled={loading}
@@ -356,63 +361,60 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
           {/* Insurance Information */}
           <Grid item xs={12}>
             <Typography variant="subtitle1" gutterBottom>
-              Insurance Information
+              Insurance Information (Optional)
             </Typography>
-          </Grid>
-          
-          <Grid item xs={12} sm={4}>
-            <TextField
-              name="insurance.provider"
-              label="Insurance Provider"
-              fullWidth
-              value={formData.insurance?.provider || ''}
-              onChange={handleChange}
-              disabled={loading}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={4}>
-            <TextField
-              name="insurance.policyNumber"
-              label="Policy Number"
-              fullWidth
-              value={formData.insurance?.policyNumber || ''}
-              onChange={handleChange}
-              error={!!errors['insurance.policyNumber']}
-              helperText={errors['insurance.policyNumber']}
-              disabled={loading}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={4}>
-            <TextField
-              name="insurance.groupNumber"
-              label="Group Number"
-              fullWidth
-              value={formData.insurance?.groupNumber || ''}
-              onChange={handleChange}
-              disabled={loading}
-            />
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  name="insurance.provider"
+                  label="Insurance Provider"
+                  fullWidth
+                  value={formData.insurance?.provider || ''}
+                  onChange={handleChange}
+                  disabled={loading}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  name="insurance.policyNumber"
+                  label="Policy Number"
+                  fullWidth
+                  value={formData.insurance?.policyNumber || ''}
+                  onChange={handleChange}
+                  error={!!errors['insurance.policyNumber']}
+                  helperText={errors['insurance.policyNumber']}
+                  disabled={loading}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  name="insurance.groupNumber"
+                  label="Group Number (Optional)"
+                  fullWidth
+                  value={formData.insurance?.groupNumber || ''}
+                  onChange={handleChange}
+                  disabled={loading}
+                />
+              </Grid>
+            </Grid>
           </Grid>
           
           {/* Form Actions */}
-          <Grid item xs={12} sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-            <Button
-              variant="outlined"
+          <Grid item xs={12} sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+            <Button 
+              variant="outlined" 
               onClick={onCancel}
-              sx={{ mr: 2 }}
               disabled={loading}
             >
               Cancel
             </Button>
-            <Button
-              type="submit"
-              variant="contained"
+            <Button 
+              type="submit" 
+              variant="contained" 
               color="primary"
               disabled={loading}
-              startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
             >
-              {loading ? 'Saving...' : isEditMode ? 'Update Appointment' : 'Schedule Appointment'}
+              {isEditMode ? 'Update Appointment' : 'Schedule Appointment'}
             </Button>
           </Grid>
         </Grid>

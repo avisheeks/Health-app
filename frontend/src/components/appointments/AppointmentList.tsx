@@ -99,13 +99,13 @@ export const AppointmentList: React.FC<AppointmentListProps> = ({
 
   const getStatusBadgeVariant = (status: AppointmentStatus) => {
     switch (status) {
-      case AppointmentStatus.CONFIRMED:
+      case 'CONFIRMED':
         return 'success';
-      case AppointmentStatus.CANCELLED:
+      case 'CANCELLED':
         return 'destructive';
-      case AppointmentStatus.COMPLETED:
+      case 'COMPLETED':
         return 'secondary';
-      case AppointmentStatus.NO_SHOW:
+      case 'NO_SHOW':
         return 'warning';
       default:
         return 'default';
@@ -113,7 +113,7 @@ export const AppointmentList: React.FC<AppointmentListProps> = ({
   };
 
   const renderActions = (appointment: Appointment) => {
-    const isUpcoming = [AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED].includes(appointment.status);
+    const isUpcoming = ['SCHEDULED', 'CONFIRMED'].includes(appointment.status as string);
     
     if (role === 'doctor') {
       return (
@@ -123,21 +123,21 @@ export const AppointmentList: React.FC<AppointmentListProps> = ({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleStatusUpdate(appointment.id, AppointmentStatus.CONFIRMED)}
+                onClick={() => handleStatusUpdate(appointment.id, 'CONFIRMED' as AppointmentStatus)}
               >
                 Confirm
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleStatusUpdate(appointment.id, AppointmentStatus.COMPLETED)}
+                onClick={() => handleStatusUpdate(appointment.id, 'COMPLETED' as AppointmentStatus)}
               >
                 Complete
               </Button>
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={() => handleStatusUpdate(appointment.id, AppointmentStatus.NO_SHOW)}
+                onClick={() => handleStatusUpdate(appointment.id, 'NO_SHOW' as AppointmentStatus)}
               >
                 No Show
               </Button>
@@ -200,13 +200,13 @@ export const AppointmentList: React.FC<AppointmentListProps> = ({
           {appointments.map((appointment) => (
             <TableRow key={appointment.id}>
               <TableCell>
-                {format(new Date(appointment.appointment_date), 'PPp')}
+                {format(new Date(appointment.startTime), 'PPp')}
               </TableCell>
               <TableCell>
-                {role === 'patient' ? appointment.doctor_id : appointment.patient_id}
+                {role === 'patient' ? appointment.doctor.name : appointment.patientId}
               </TableCell>
               <TableCell>
-                {appointment.appointment_type.replace('_', ' ')}
+                {appointment.type.toString().replace('_', ' ')}
               </TableCell>
               <TableCell>{appointment.reason}</TableCell>
               <TableCell>

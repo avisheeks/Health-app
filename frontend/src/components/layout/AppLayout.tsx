@@ -34,7 +34,8 @@ import {
   SupervisorAccount as AdminIcon,
   Notifications as NotificationsIcon,
   ExitToApp as LogoutIcon,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Watch as WatchIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import './Layout.css';
@@ -111,6 +112,14 @@ const AppLayout = () => {
         text: 'Health Metrics',
         icon: <FavoriteIcon />,
         path: '/health-metrics',
+        roles: ['PATIENT']
+      });
+      
+      // Wearable Data - Only for patients
+      items.push({
+        text: 'Wearable Data',
+        icon: <WatchIcon />,
+        path: '/wearable-data',
         roles: ['PATIENT']
       });
     }

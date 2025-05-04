@@ -33,7 +33,7 @@ import NewAppointment from './pages/appointments/NewAppointment';
 import AppointmentCalendar from './pages/appointments/AppointmentCalendar';
 
 // Health Metrics
-import { HealthDashboard, MetricDetail, MetricEntry } from './pages/health-metrics';
+import { HealthDashboard, MetricDetail, MetricEntry, WearableHealthDashboard } from './pages/health-metrics';
 
 // Profile
 import UserProfile from './pages/profile/UserProfile';
@@ -194,6 +194,22 @@ const App = () => {
                       element={
                         <PrivateRoute roles={['PATIENT']}>
                           <MetricEntry />
+                        </PrivateRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/wearable-data" 
+                      element={
+                        <PrivateRoute roles={['PATIENT']}>
+                          <WearableHealthDashboard />
+                        </PrivateRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/wearable-data/:userId" 
+                      element={
+                        <PrivateRoute roles={['PATIENT']}>
+                          <WearableHealthDashboard />
                         </PrivateRoute>
                       } 
                     />

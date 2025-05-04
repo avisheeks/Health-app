@@ -8,6 +8,7 @@ import './Auth.css';
 import { UserMetadata, Role } from '../../types/user';
 import axios from 'axios';
 import { supabase } from '../../config/supabase';
+import { v4 as uuidv4 } from 'uuid';
 
 // Define interfaces for API data and errors
 interface ApiErrorResponse {
@@ -70,7 +71,7 @@ const Register: React.FC = () => {
         role: formData.role as Role,
         // Add additional fields based on role
         ...(formData.role === 'DOCTOR' ? {
-          specialization: '',
+          specialization: formData.specialization || 'General Medicine',
           licenseNumber: ''
         } : {})
       };
@@ -95,13 +96,36 @@ const Register: React.FC = () => {
       // If doctor, register in doctors table
       if (formData.role === 'DOCTOR' && userId) {
         try {
+          // Call backend to register doctor
           await axios.post('http://localhost:8000/doctors/register', {
             id: userId,
             name: fullName,
-            specialty: 'General', // You can update this to use a real specialty field
+            specialty: formData.specialization || 'General Medicine', // Use the selected specialization
             latitude: formData.latitude,
             longitude: formData.longitude
           });
+
+          // Also create a doctor_profile in Supabase for frontend use
+          const licenseNumber = 'MD' + Math.floor(10000 + Math.random() * 90000);
+          const { error: profileError } = await supabase
+            .from('doctor_profiles')
+            .insert({
+              id: uuidv4(),
+              user_id: userId,
+              license_number: licenseNumber,
+              experience_years: 0, // Default value
+              bio: `Dr. ${fullName} is a ${formData.specialization || 'General Medicine'} specialist.`,
+              languages: ['English'],
+              availability_status: 'AVAILABLE',
+              rating: 0,
+              rating_count: 0,
+              consultation_fee: 100.00 // Default value
+            });
+
+          if (profileError) {
+            console.error('Error creating doctor profile:', profileError);
+            throw new Error('Failed to create doctor profile');
+          }
         } catch (err) {
           setError('Doctor registration failed. Please try again.');
           showNotification('Doctor registration failed. Please try again.', 'error');

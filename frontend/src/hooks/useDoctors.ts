@@ -4,6 +4,7 @@ import { supabase } from '../config/supabase';
 
 export interface Doctor {
   id: string;
+  user_id?: string;
   name: string;
   specialty: string;
   image?: string;
@@ -26,182 +27,100 @@ export interface Doctor {
   };
 }
 
-// Mock doctor data for fallback
-const mockDoctors: Doctor[] = [
-  {
-    id: 'dr1',
-    name: 'Dr. John Smith',
-    specialty: 'General Practitioner',
-    image: '/assets/doctors/john-smith.jpg',
-    department: 'Family Medicine',
-    hospital: 'Main Hospital',
-    schedule: [
-      { day: 'Monday', startTime: '09:00', endTime: '17:00' },
-      { day: 'Wednesday', startTime: '09:00', endTime: '17:00' },
-      { day: 'Friday', startTime: '09:00', endTime: '15:00' }
-    ],
-    education: [
-      'MD, Harvard Medical School',
-      'Residency, Massachusetts General Hospital'
-    ],
-    certifications: [
-      'American Board of Family Medicine',
-      'Advanced Cardiac Life Support'
-    ],
-    experience: '15 years',
-    acceptingNewPatients: true,
-    bio: 'Dr. Smith specializes in family medicine with a focus on preventive care and chronic disease management.',
-    contactInfo: {
-      email: 'john.smith@hospital.com',
-      phone: '(555) 123-4567',
-      officeLocation: 'Main Building, Floor 2, Room 201'
-    }
-  },
-  {
-    id: 'dr2',
-    name: 'Dr. Emily Chen',
-    specialty: 'Cardiology',
-    image: '/assets/doctors/emily-chen.jpg',
-    department: 'Cardiology',
-    hospital: 'Heart Center',
-    schedule: [
-      { day: 'Tuesday', startTime: '08:00', endTime: '16:00' },
-      { day: 'Thursday', startTime: '08:00', endTime: '16:00' },
-      { day: 'Friday', startTime: '09:00', endTime: '13:00' }
-    ],
-    education: [
-      'MD, Johns Hopkins University School of Medicine',
-      'Residency, Cleveland Clinic',
-      'Fellowship in Cardiology, Mayo Clinic'
-    ],
-    certifications: [
-      'American Board of Internal Medicine - Cardiovascular Disease',
-      'Certification in Advanced Heart Failure and Transplant Cardiology'
-    ],
-    experience: '12 years',
-    acceptingNewPatients: true,
-    bio: 'Dr. Chen is a board-certified cardiologist specializing in heart failure and cardiovascular disease.',
-    contactInfo: {
-      email: 'emily.chen@hospital.com',
-      phone: '(555) 234-5678',
-      officeLocation: 'Heart Center, Floor 3, Room 305'
-    }
-  },
-  {
-    id: 'dr3',
-    name: 'Dr. Maria Rodriguez',
-    specialty: 'Family Medicine',
-    image: '/assets/doctors/maria-rodriguez.jpg',
-    department: 'Family Medicine',
-    hospital: 'Community Health Center',
-    schedule: [
-      { day: 'Monday', startTime: '10:00', endTime: '18:00' },
-      { day: 'Tuesday', startTime: '10:00', endTime: '18:00' },
-      { day: 'Thursday', startTime: '10:00', endTime: '18:00' }
-    ],
-    education: [
-      'MD, University of California, San Francisco',
-      'Residency, UCLA Medical Center'
-    ],
-    certifications: [
-      'American Board of Family Medicine',
-      'Certified in Telehealth Services'
-    ],
-    experience: '8 years',
-    acceptingNewPatients: true,
-    bio: 'Dr. Rodriguez is dedicated to providing comprehensive care for patients of all ages, with special interest in women\'s health and telemedicine.',
-    contactInfo: {
-      email: 'maria.rodriguez@hospital.com',
-      phone: '(555) 345-6789',
-      officeLocation: 'Community Health Center, Room 105'
-    }
-  },
-  {
-    id: 'dr4',
-    name: 'Dr. David Kim',
-    specialty: 'Pediatrics',
-    image: '/assets/doctors/david-kim.jpg',
-    department: 'Pediatrics',
-    hospital: 'Children\'s Hospital',
-    schedule: [
-      { day: 'Monday', startTime: '08:30', endTime: '16:30' },
-      { day: 'Wednesday', startTime: '08:30', endTime: '16:30' },
-      { day: 'Thursday', startTime: '08:30', endTime: '16:30' }
-    ],
-    education: [
-      'MD, Stanford University School of Medicine',
-      'Residency in Pediatrics, Children\'s Hospital of Philadelphia'
-    ],
-    certifications: [
-      'American Board of Pediatrics',
-      'Pediatric Advanced Life Support Instructor'
-    ],
-    experience: '10 years',
-    acceptingNewPatients: true,
-    bio: 'Dr. Kim is passionate about children\'s health and development, focusing on creating a comfortable environment for young patients and their families.',
-    contactInfo: {
-      email: 'david.kim@hospital.com',
-      phone: '(555) 456-7890',
-      officeLocation: 'Children\'s Wing, Floor 1, Room 110'
-    }
-  }
-];
-
 export const useDoctors = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   const { showNotification } = useNotification();
 
-  // Fetch all doctors from Supabase
-  const fetchDoctors = useCallback(async () => {
-    setLoading(true);
-    try {
-      // Fetch doctors from Supabase profiles table where role is DOCTOR
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, last_name, role')
-        .eq('role', 'DOCTOR');
-        
-      if (error) {
-        throw error;
-      }
-      
-      // Transform the data to match the Doctor interface
-      const formattedDoctors: Doctor[] = data.map(profile => ({
-        id: profile.id,
-        name: profile.full_name || profile.last_name || 'Unknown Doctor',
-        specialty: 'General Medicine', // Default since specialty doesn't exist in DB
-        contactInfo: {
-          email: profile.email
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      try {
+        setLoading(true);
+
+        // Query doctor_profiles joined with users to get complete information
+        const { data: doctorProfiles, error: profilesError } = await supabase
+          .from('doctor_profiles')
+          .select(`
+            id,
+            user_id,
+            license_number,
+            bio,
+            users (
+              id,
+              full_name,
+              email,
+              role
+            )
+          `);
+          
+        if (profilesError) {
+          console.error('Error fetching doctor profiles:', profilesError);
+          throw profilesError;
         }
-      }));
-      
-      setDoctors(formattedDoctors);
-      return formattedDoctors;
-    } catch (err) {
-      const error = err as Error;
-      setError(error);
-      showNotification('Error fetching doctors: ' + error.message, 'error');
-      
-      // Fallback to mock data in case of error
-      setDoctors(mockDoctors);
-      return mockDoctors;
-    } finally {
-      setLoading(false);
-    }
+        
+        console.log('DEBUG - Doctor profiles data:', doctorProfiles);
+        
+        if (doctorProfiles && doctorProfiles.length > 0) {
+          // Transform the joined data to match our Doctor interface
+          const formattedDoctors = doctorProfiles.map(profile => {
+            // Handle the nested users object from Supabase
+            const userInfo = profile.users as any;
+            
+            return {
+              id: profile.id, // Use doctor_profile.id as the primary ID for appointments
+              user_id: profile.user_id, // Store the user_id for reference
+              name: userInfo?.full_name || 'Unknown Doctor',
+              specialty: profile.license_number ? `MD ${profile.license_number}` : 'General Medicine',
+              bio: profile.bio || '',
+              contactInfo: {
+                email: userInfo?.email || ''
+              }
+            };
+          });
+          
+          console.log('DEBUG - Formatted doctors:', formattedDoctors);
+          setDoctors(formattedDoctors);
+        } else {
+          console.warn('No doctor profiles found');
+          setDoctors([]);
+          showNotification('No doctor profiles found in the system. Please set up doctor profiles.', 'warning');
+        }
+      } catch (err) {
+        console.error('Error fetching doctors:', err);
+        setError(err as Error);
+        setDoctors([]);
+        if (showNotification) {
+          showNotification(`Failed to load doctors: ${(err as Error).message}. Please check your database connection.`, 'error');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDoctors();
   }, [showNotification]);
 
-  // Fetch a doctor by ID
+  // Fetch a doctor by ID - using doctor_profiles
   const fetchDoctorById = useCallback(async (doctorId: string) => {
     setLoading(true);
     try {
-      // Fetch doctor from Supabase
+      // Fetch from doctor_profiles joined with users
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, last_name, role')
+        .from('doctor_profiles')
+        .select(`
+          id,
+          user_id,
+          license_number,
+          bio,
+          users (
+            id,
+            full_name,
+            email,
+            role
+          )
+        `)
         .eq('id', doctorId)
-        .eq('role', 'DOCTOR')
         .single();
         
       if (error) {
@@ -212,13 +131,18 @@ export const useDoctors = () => {
         throw new Error('Doctor not found');
       }
       
+      // Handle the nested users object from Supabase
+      const userInfo = data.users as any;
+      
       // Transform to match Doctor interface
       const doctor: Doctor = {
         id: data.id,
-        name: data.full_name || data.last_name || 'Unknown Doctor',
-        specialty: 'General Medicine', // Default since specialty doesn't exist in DB
+        user_id: data.user_id,
+        name: userInfo?.full_name || 'Unknown Doctor',
+        specialty: data.license_number ? `MD ${data.license_number}` : 'General Medicine',
+        bio: data.bio || '',
         contactInfo: {
-          email: data.email
+          email: userInfo?.email || ''
         }
       };
       
@@ -227,10 +151,7 @@ export const useDoctors = () => {
       const error = err as Error;
       setError(error);
       showNotification('Error fetching doctor: ' + error.message, 'error');
-      
-      // Fallback to mock data
-      const mockDoctor = mockDoctors.find(d => d.id === doctorId);
-      return mockDoctor || null;
+      return null;
     } finally {
       setLoading(false);
     }
@@ -238,56 +159,57 @@ export const useDoctors = () => {
 
   // Filter doctors by specialty
   const filterDoctorsBySpecialty = useCallback(async (specialty: string) => {
-    setLoading(true);
     try {
-      // Since specialty column doesn't exist, we'll just fetch all doctors
-      // and filter client-side (not ideal but works as a fallback)
+      // For now, this will just return all doctors since specialty filtering isn't implemented
+      // You can enhance this later to actually filter by specialty
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, last_name, role')
-        .eq('role', 'DOCTOR');
+        .from('doctor_profiles')
+        .select(`
+          id,
+          user_id,
+          license_number,
+          bio,
+          users (
+            id,
+            full_name,
+            email,
+            role
+          )
+        `);
         
       if (error) {
         throw error;
       }
       
-      // Transform to match Doctor interface
-      const formattedDoctors: Doctor[] = data.map(profile => ({
-        id: profile.id,
-        name: profile.full_name || profile.last_name || 'Unknown Doctor',
-        specialty: 'General Medicine', // Default since specialty doesn't exist in DB
-        contactInfo: {
-          email: profile.email
-        }
-      }));
+      // Transform the joined data to match our Doctor interface
+      const doctors = data.map(profile => {
+        const userInfo = profile.users as any;
+        
+        return {
+          id: profile.id,
+          user_id: profile.user_id,
+          name: userInfo?.full_name || 'Unknown Doctor',
+          specialty: profile.license_number ? `MD ${profile.license_number}` : 'General Medicine',
+          bio: profile.bio || '',
+          contactInfo: {
+            email: userInfo?.email || ''
+          }
+        };
+      });
       
-      // We'll just return all doctors since we can't filter by specialty in DB
-      return formattedDoctors;
+      return doctors;
     } catch (err) {
       const error = err as Error;
       setError(error);
       showNotification('Error filtering doctors: ' + error.message, 'error');
-      
-      // Fallback to filtering mock data
-      const filteredMockDoctors = mockDoctors.filter(
-        d => d.specialty.toLowerCase().includes(specialty.toLowerCase())
-      );
-      return filteredMockDoctors;
-    } finally {
-      setLoading(false);
+      return [];
     }
   }, [showNotification]);
-
-  // Initialize by fetching all doctors
-  useEffect(() => {
-    fetchDoctors();
-  }, [fetchDoctors]);
 
   return {
     doctors,
     loading,
     error,
-    fetchDoctors,
     fetchDoctorById,
     filterDoctorsBySpecialty
   };

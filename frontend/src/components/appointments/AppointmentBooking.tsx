@@ -26,10 +26,9 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
   const [selectedSlot, setSelectedSlot] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<Partial<AppointmentCreate>>({
-    doctor_id: doctorId,
-    patient_id: user?.id || '',
-    appointment_type: AppointmentType.REGULAR,
-    duration_minutes: 30,
+    doctorId: doctorId,
+    patientId: user?.id || '',
+    type: AppointmentType.IN_PERSON,
     reason: '',
     notes: ''
   });
@@ -41,7 +40,7 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
         const slots = await appointmentService.getAvailableSlots({
           doctor_id: doctorId,
           date: format(date, 'yyyy-MM-dd'),
-          duration: formData.duration_minutes
+          duration: 30 // Default duration
         });
         setAvailableSlots(slots);
       } catch (error) {
@@ -56,7 +55,7 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
     if (date) {
       fetchSlots();
     }
-  }, [date, doctorId, formData.duration_minutes]);
+  }, [date, doctorId, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,9 +70,15 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
 
     setLoading(true);
     try {
+      // Calculate end time (30 min after start)
+      const startTime = new Date(selectedSlot);
+      const endTime = new Date(startTime);
+      endTime.setMinutes(endTime.getMinutes() + 30);
+
       await appointmentService.create({
         ...formData,
-        appointment_date: selectedSlot,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
       } as AppointmentCreate);
 
       toast({
@@ -136,37 +141,15 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
               Appointment Type
             </label>
             <Select
-              value={formData.appointment_type}
+              value={formData.type as string}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFormData({
                 ...formData,
-                appointment_type: e.target.value as AppointmentType
+                type: e.target.value as AppointmentType
               })}
               required
             >
-              {Object.values(AppointmentType).map((type) => (
-                <option key={type} value={type}>
-                  {type.replace('_', ' ')}
-                </option>
-              ))}
-            </Select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Duration (minutes)
-            </label>
-            <Select
-              value={formData.duration_minutes}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFormData({
-                ...formData,
-                duration_minutes: Number(e.target.value)
-              })}
-              required
-            >
-              <option value={15}>15 minutes</option>
-              <option value={30}>30 minutes</option>
-              <option value={45}>45 minutes</option>
-              <option value={60}>60 minutes</option>
+              <option value={AppointmentType.IN_PERSON}>In Person</option>
+              <option value={AppointmentType.VIRTUAL}>Virtual</option>
             </Select>
           </div>
 
